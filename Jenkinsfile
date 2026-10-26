@@ -8,14 +8,19 @@ pipeline {
 
                 bat '''
                     @echo off
-                    echo ===== GIT =====
-                    git --version
-
-                    echo ===== CURRENT COMMIT =====
                     git log -1 --oneline
+                '''
+            }
+        }
 
-                    echo ===== PROJECT FILES =====
-                    dir
+        stage('Docker Build') {
+            steps {
+                echo 'Building Cart System v1 Docker image'
+
+                bat '''
+                    @echo off
+                    "C:\\Users\\avied\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe" build -t avi22022007/cart-system:v1 .
+                    if errorlevel 1 exit /b 1
                 '''
             }
         }
