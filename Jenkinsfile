@@ -42,18 +42,19 @@ pipeline {
                         if errorlevel 1 exit /b 1
 
                         "%DOCKER%" logout
+                        if errorlevel 1 exit /b 1
                     '''
                 }
             }
         }
+    }
 
-        post {
-            always {
-                bat '''
-                    @echo off
-                    if exist "%WORKSPACE%\\docker-auth" rmdir /s /q "%WORKSPACE%\\docker-auth"
-                '''
-            }
+    post {
+        always {
+            bat '''
+                @echo off
+                if exist "%WORKSPACE%\\docker-auth" rmdir /s /q "%WORKSPACE%\\docker-auth"
+            '''
         }
     }
 }
