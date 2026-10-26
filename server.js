@@ -15,7 +15,17 @@ let nextId = 1;
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', version: 'v2' });
+    res.json({ status: 'ok', version: 'v3' });
+});
+
+// v3: Calculate total cart price
+// Must be before /cart/:id-style routes
+app.get('/cart/total', (req, res) => {
+    const total = cart.reduce((sum, item) => {
+        return sum + item.price * item.quantity;
+    }, 0);
+
+    res.json({ total: Number(total.toFixed(2)) });
 });
 
 // View all cart items
@@ -41,16 +51,14 @@ app.post('/cart', (req, res) => {
     };
 
     cart.push(item);
-
     res.status(201).json(item);
 });
 
-// v2: Update quantity of an existing cart item
+// v2: Update quantity
 app.put('/cart/:id', (req, res) => {
     const id = Number(req.params.id);
     const quantity = Number(req.body?.quantity);
 
-    // Validate item ID and quantity
     if (
         !Number.isSafeInteger(id) ||
         id < 1 ||
@@ -63,7 +71,6 @@ app.put('/cart/:id', (req, res) => {
         });
     }
 
-    // Find the item by ID
     const item = cart.find(item => item.id === id);
 
     if (!item) {
@@ -72,13 +79,11 @@ app.put('/cart/:id', (req, res) => {
         });
     }
 
-    // Update quantity
     item.quantity = quantity;
-
     res.status(200).json(item);
 });
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`Cart v2 running on port ${PORT}`);
+    console.log(`Cart v3 running on port ${PORT}`);
 });

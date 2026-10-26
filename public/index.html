@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cart System v2</title>
+    <title>Cart System v3</title>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -39,36 +40,67 @@
             cursor: pointer;
         }
 
-        button:hover { background: #1d4ed8; }
+        button:hover {
+            background: #1d4ed8;
+        }
 
         .item {
             border-bottom: 1px solid #ddd;
             padding: 12px 0;
         }
 
-        .item:last-child { border-bottom: none; }
-        #message { margin: 12px 0; }
+        .item:last-child {
+            border-bottom: none;
+        }
+
+        .total {
+            margin-top: 20px;
+            padding: 15px;
+            background: #ecfdf5;
+            border-radius: 8px;
+            color: #166534;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        #message {
+            margin: 12px 0;
+        }
     </style>
 </head>
-<body>
 
-    <h1>Shopping Cart — v2</h1>
-    <p>Features: Add Items + Update Quantity</p>
+<body>
+    <h1>Shopping Cart — v3</h1>
+    <p>Features: Add Items + Update Quantity + Grand Total</p>
 
     <div class="card">
         <h2>Add Item</h2>
 
         <form id="addForm">
-            <input type="text" id="name"
-                   placeholder="Item name" required>
+            <input
+                type="text"
+                id="name"
+                placeholder="Item name"
+                required
+            >
 
-            <input type="number" id="price"
-                   placeholder="Price" min="0"
-                   step="0.01" required>
+            <input
+                type="number"
+                id="price"
+                placeholder="Price"
+                min="0"
+                step="0.01"
+                required
+            >
 
-            <input type="number" id="quantity"
-                   placeholder="Quantity" min="1"
-                   step="1" required>
+            <input
+                type="number"
+                id="quantity"
+                placeholder="Quantity"
+                min="1"
+                step="1"
+                required
+            >
 
             <button type="submit">Add to Cart</button>
         </form>
@@ -76,7 +108,13 @@
 
     <div class="card">
         <h2>Cart Items</h2>
+
         <div id="cartList">Loading...</div>
+
+        <div class="total">
+            Grand Total:
+            <span id="grandTotal">₹0.00</span>
+        </div>
     </div>
 
     <p id="message" role="status"></p>
@@ -84,51 +122,83 @@
     <script>
         const cartList = document.getElementById('cartList');
         const message = document.getElementById('message');
+        const grandTotal = document.getElementById('grandTotal');
 
+        // Load cart items and total
         async function loadCart() {
             try {
                 const response = await fetch('/cart');
-                if (!response.ok) throw new Error('Failed to load cart');
+
+                if (!response.ok) {
+                    throw new Error('Failed to load cart');
+                }
 
                 const items = await response.json();
+
                 cartList.replaceChildren();
 
                 if (items.length === 0) {
                     cartList.textContent = 'Your cart is empty.';
-                    return;
+                } else {
+                    items.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'item';
+
+                        const details = document.createElement('p');
+
+                        const subtotal = item.price * item.quantity;
+
+                        details.textContent =
+                            `${item.name} — ₹${Number(item.price).toLocaleString('en-IN')} × ${item.quantity} = ₹${subtotal.toLocaleString('en-IN', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            })}`;
+
+                        const input = document.createElement('input');
+
+                        input.type = 'number';
+                        input.min = '1';
+                        input.step = '1';
+                        input.value = item.quantity;
+
+                        input.setAttribute(
+                            'aria-label',
+                            `Quantity for ${item.name}`
+                        );
+
+                        const button = document.createElement('button');
+                        button.textContent = 'Update Quantity';
+
+                        button.addEventListener('click', () => {
+                            updateQuantity(item.id, input.value);
+                        });
+
+                        row.append(details, input, button);
+                        cartList.appendChild(row);
+                    });
                 }
 
-                items.forEach(item => {
-                    const row = document.createElement('div');
-                    row.className = 'item';
+                // v3: Retrieve total from backend
+                const totalResponse = await fetch('/cart/total');
 
-                    const details = document.createElement('p');
-                    details.textContent =
-                        `${item.name} — ₹${item.price} × ${item.quantity}`;
+                if (!totalResponse.ok) {
+                    throw new Error('Failed to calculate total');
+                }
 
-                    const input = document.createElement('input');
-                    input.type = 'number';
-                    input.min = '1';
-                    input.step = '1';
-                    input.value = item.quantity;
-                    input.setAttribute('aria-label',
-                        `Quantity for ${item.name}`);
+                const totalData = await totalResponse.json();
 
-                    const button = document.createElement('button');
-                    button.textContent = 'Update Quantity';
-
-                    button.addEventListener('click', () => {
-                        updateQuantity(item.id, input.value);
+                grandTotal.textContent =
+                    '₹' + totalData.total.toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
                     });
 
-                    row.append(details, input, button);
-                    cartList.appendChild(row);
-                });
             } catch (error) {
                 message.textContent = error.message;
             }
         }
 
+        // v1: Add item
         document.getElementById('addForm')
             .addEventListener('submit', async event => {
                 event.preventDefault();
@@ -139,8 +209,13 @@
                     document.getElementById('quantity').value
                 );
 
-                if (!name || !Number.isFinite(price) || price < 0 ||
-                    !Number.isSafeInteger(quantity) || quantity < 1) {
+                if (
+                    !name ||
+                    !Number.isFinite(price) ||
+                    price < 0 ||
+                    !Number.isSafeInteger(quantity) ||
+                    quantity < 1
+                ) {
                     message.textContent = 'Enter valid item details.';
                     return;
                 }
@@ -148,32 +223,50 @@
                 try {
                     const response = await fetch('/cart', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name, price, quantity })
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name,
+                            price,
+                            quantity
+                        })
                     });
 
-                    if (!response.ok) throw new Error('Failed to add item');
+                    if (!response.ok) {
+                        throw new Error('Failed to add item');
+                    }
 
                     message.textContent = 'Item added successfully!';
+
                     document.getElementById('addForm').reset();
+
                     await loadCart();
+
                 } catch (error) {
                     message.textContent = error.message;
                 }
             });
 
+        // v2: Update quantity
         async function updateQuantity(id, value) {
             const quantity = Number(value);
 
-            if (!Number.isSafeInteger(quantity) || quantity < 1) {
-                message.textContent = 'Quantity must be a positive integer.';
+            if (
+                !Number.isSafeInteger(quantity) ||
+                quantity < 1
+            ) {
+                message.textContent =
+                    'Quantity must be a positive integer.';
                 return;
             }
 
             try {
                 const response = await fetch(`/cart/${id}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ quantity })
                 });
 
@@ -181,13 +274,17 @@
                     throw new Error('Failed to update quantity');
                 }
 
-                message.textContent = 'Quantity updated successfully!';
+                message.textContent =
+                    'Quantity updated successfully!';
+
                 await loadCart();
+
             } catch (error) {
                 message.textContent = error.message;
             }
         }
 
+        // Load cart when page opens
         loadCart();
     </script>
 </body>
