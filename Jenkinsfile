@@ -47,6 +47,36 @@ pipeline {
                 }
             }
         }
+
+        stage('Kubernetes Deploy') {
+            steps {
+                withCredentials([file(
+                    credentialsId: 'cart-kubeconfig',
+                    variable: 'KUBECONFIG'
+                )]) {
+                    bat '''
+                        @echo off
+                        set "KUBECTL=C:\\Users\\avied\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\kubectl.exe"
+
+                        echo ===== Apply Kubernetes Configuration =====
+                        "%KUBECTL%" apply -f k8s/v1.yaml
+                        if errorlevel 1 exit /b 1
+
+                        echo ===== Restart Deployment =====
+                        "%KUBECTL%" rollout restart deployment/cart-v1
+                        if errorlevel 1 exit /b 1
+
+                        echo ===== Wait for Deployment =====
+                        "%KUBECTL%" rollout status deployment/cart-v1 --timeout=120s
+                        if errorlevel 1 exit /b 1
+
+                        echo ===== Deployment Status =====
+                        "%KUBECTL%" get deployment cart-v1
+                        if errorlevel 1 exit /b 1
+                    '''
+                }
+            }
+        }
     }
 
     post {
