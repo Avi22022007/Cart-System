@@ -26,22 +26,33 @@ pipeline {
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_TOKEN'
                 )]) {
-                    powershell '''
-                        $ErrorActionPreference = 'Stop'
-                        $token = $env:DOCKER_TOKEN
-                        $token | & $env:DOCKER login --username $env:DOCKER_USER --password-stdin
+                    bat '''
+                        @echo off
+                        setlocal DisableDelayedExpansion
 
-                        if ($LASTEXITCODE -ne 0) {
-                            throw "DockerHub login failed"
-                        }
+                        set "DOCKER_CONFIG=%WORKSPACE%\\docker-auth"
+                        if not exist "%DOCKER_CONFIG%" mkdir "%DOCKER_CONFIG%"
 
-                        & $env:DOCKER push $env:IMAGE
+                        echo ===== DockerHub Login =====
+                        echo %DOCKER_TOKEN%| "%DOCKER%" login --username "%DOCKER_USER%" --password-stdin
+                        if errorlevel 1 exit /b 1
 
-                        if ($LASTEXITCODE -ne 0) {
-                            throw "DockerHub push failed"
-                        }
+                        echo ===== DockerHub Push =====
+                        "%DOCKER%" push "%IMAGE%"
+                        if errorlevel 1 exit /b 1
+
+                        "%DOCKER%" logout
                     '''
                 }
+            }
+        }
+
+        post {
+            always {
+                bat '''
+                    @echo off
+                    if exist "%WORKSPACE%\\docker-auth" rmdir /s /q "%WORKSPACE%\\docker-auth"
+                '''
             }
         }
     }
