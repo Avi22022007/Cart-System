@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE = 'avi22022007/cart-system:v2'
+        IMAGE = 'avi22022007/cart-system:v3'
         DOCKER = 'C:\\Users\\avied\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe'
     }
 
@@ -59,19 +59,19 @@ pipeline {
                         set "KUBECTL=C:\\Users\\avied\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\kubectl.exe"
 
                         echo ===== Apply Kubernetes Configuration =====
-                        "%KUBECTL%" apply -f k8s/v2.yaml
+                        "%KUBECTL%" apply -f k8s/v3.yaml
                         if errorlevel 1 exit /b 1
 
                         echo ===== Restart Deployment =====
-                        "%KUBECTL%" rollout restart deployment/cart-v2
+                        "%KUBECTL%" rollout restart deployment/cart-v3
                         if errorlevel 1 exit /b 1
 
                         echo ===== Wait for Deployment =====
-                        "%KUBECTL%" rollout status deployment/cart-v2 --timeout=120s
+                        "%KUBECTL%" rollout status deployment/cart-v3 --timeout=120s
                         if errorlevel 1 exit /b 1
 
                         echo ===== Deployment Status =====
-                        "%KUBECTL%" get deployment cart-v2
+                        "%KUBECTL%" get deployment cart-v3
                         if errorlevel 1 exit /b 1
                     '''
                 }
