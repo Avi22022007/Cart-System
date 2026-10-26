@@ -1,33 +1,194 @@
-<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Cart System v1</title></head>
-<body>
-  <h1>Cart System v1</h1>
-  <input id="name" placeholder="Item name">
-  <input id="price" type="number" placeholder="Price">
-  <input id="qty" type="number" placeholder="Qty" value="1">
-  <button onclick="addItem()">Add to cart</button>
-  <ul id="list"></ul>
 
-  <script>
-    async function load() {
-      const items = await (await fetch('/cart')).json();
-      document.getElementById('list').innerHTML =
-        items.map(i => `<li>${i.name} - ₹${i.price} x ${i.quantity}</li>`).join('');
-    }
-    async function addItem() {
-      await fetch('/cart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: document.getElementById('name').value,
-          price: document.getElementById('price').value,
-          quantity: document.getElementById('qty').value
-        })
-      });
-      load();
-    }
-    load();
-  </script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cart System v2</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 650px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f4f6f9;
+        }
+
+        h1 { color: #222; }
+
+        .card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px #00000012;
+        }
+
+        input {
+            padding: 10px;
+            margin: 5px;
+            max-width: 140px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover { background: #1d4ed8; }
+
+        .item {
+            border-bottom: 1px solid #ddd;
+            padding: 12px 0;
+        }
+
+        .item:last-child { border-bottom: none; }
+        #message { margin: 12px 0; }
+    </style>
+</head>
+<body>
+
+    <h1>Shopping Cart — v2</h1>
+    <p>Features: Add Items + Update Quantity</p>
+
+    <div class="card">
+        <h2>Add Item</h2>
+
+        <form id="addForm">
+            <input type="text" id="name"
+                   placeholder="Item name" required>
+
+            <input type="number" id="price"
+                   placeholder="Price" min="0"
+                   step="0.01" required>
+
+            <input type="number" id="quantity"
+                   placeholder="Quantity" min="1"
+                   step="1" required>
+
+            <button type="submit">Add to Cart</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Cart Items</h2>
+        <div id="cartList">Loading...</div>
+    </div>
+
+    <p id="message" role="status"></p>
+
+    <script>
+        const cartList = document.getElementById('cartList');
+        const message = document.getElementById('message');
+
+        async function loadCart() {
+            try {
+                const response = await fetch('/cart');
+                if (!response.ok) throw new Error('Failed to load cart');
+
+                const items = await response.json();
+                cartList.replaceChildren();
+
+                if (items.length === 0) {
+                    cartList.textContent = 'Your cart is empty.';
+                    return;
+                }
+
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'item';
+
+                    const details = document.createElement('p');
+                    details.textContent =
+                        `${item.name} — ₹${item.price} × ${item.quantity}`;
+
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.min = '1';
+                    input.step = '1';
+                    input.value = item.quantity;
+                    input.setAttribute('aria-label',
+                        `Quantity for ${item.name}`);
+
+                    const button = document.createElement('button');
+                    button.textContent = 'Update Quantity';
+
+                    button.addEventListener('click', () => {
+                        updateQuantity(item.id, input.value);
+                    });
+
+                    row.append(details, input, button);
+                    cartList.appendChild(row);
+                });
+            } catch (error) {
+                message.textContent = error.message;
+            }
+        }
+
+        document.getElementById('addForm')
+            .addEventListener('submit', async event => {
+                event.preventDefault();
+
+                const name = document.getElementById('name').value.trim();
+                const price = Number(document.getElementById('price').value);
+                const quantity = Number(
+                    document.getElementById('quantity').value
+                );
+
+                if (!name || !Number.isFinite(price) || price < 0 ||
+                    !Number.isSafeInteger(quantity) || quantity < 1) {
+                    message.textContent = 'Enter valid item details.';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/cart', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, price, quantity })
+                    });
+
+                    if (!response.ok) throw new Error('Failed to add item');
+
+                    message.textContent = 'Item added successfully!';
+                    document.getElementById('addForm').reset();
+                    await loadCart();
+                } catch (error) {
+                    message.textContent = error.message;
+                }
+            });
+
+        async function updateQuantity(id, value) {
+            const quantity = Number(value);
+
+            if (!Number.isSafeInteger(quantity) || quantity < 1) {
+                message.textContent = 'Quantity must be a positive integer.';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/cart/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ quantity })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update quantity');
+                }
+
+                message.textContent = 'Quantity updated successfully!';
+                await loadCart();
+            } catch (error) {
+                message.textContent = error.message;
+            }
+        }
+
+        loadCart();
+    </script>
 </body>
 </html>
