@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Cart System v1</title></head>
+<body>
+  <h1>Cart System v1</h1>
+  <input id="name" placeholder="Item name">
+  <input id="price" type="number" placeholder="Price">
+  <input id="qty" type="number" placeholder="Qty" value="1">
+  <button onclick="addItem()">Add to cart</button>
+  <ul id="list"></ul>
+
+  <script>
+    async function load() {
+      const items = await (await fetch('/cart')).json();
+      document.getElementById('list').innerHTML =
+        items.map(i => `<li>${i.name} - ₹${i.price} x ${i.quantity}</li>`).join('');
+    }
+    async function addItem() {
+      await fetch('/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: document.getElementById('name').value,
+          price: document.getElementById('price').value,
+          quantity: document.getElementById('qty').value
+        })
+      });
+      load();
+    }
+    load();
+  </script>
+</body>
+</html>
